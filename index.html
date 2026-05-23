@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>⚡ Integrador Directo ⚡</title>
+    <style>
+        body { background: #0a0f1e; color: #0ff; font-family: monospace; padding: 2rem; max-width: 900px; margin: auto; }
+        input, button { background: #1a1f2e; border: 1px solid cyan; color: cyan; padding: 0.7rem; font-size: 1.2rem; border-radius: 8px; }
+        button { cursor: pointer; background: #0a0f1e; }
+        button:hover { background: cyan; color: black; }
+        .resultado { background: #010a14; border-left: 4px solid cyan; padding: 1rem; margin-top: 1.5rem; }
+        .paso { border-bottom: 1px dotted #0ff3; padding: 0.5rem 0; }
+        .ejemplos { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .ejemplo { background: #0ff1; border: 1px solid cyan; border-radius: 20px; padding: 0.2rem 0.8rem; cursor: pointer; }
+        .firma { text-align: right; margin-top: 2rem; border-top: 1px solid cyan; padding-top: 0.5rem; font-size: 0.8rem; }
+<link rel="stylesheet" href="estilos.css">
+    </style>
+</head>
+<body>
+
+<h2>🧮 INTEGRADOR DIRECTO</h2>
+<p>Escribe directo: <strong>3x^2, sen2x, cos3x, e^(2x), 1/x, sec^2(x)</strong></p>
+
+<input type="text" id="funcion" size="50" value="3x^2" style="width: 100%;">
+<button id="integrar">📐 INTEGRAR</button>
+
+<div class="ejemplos">
+    <span>🔽 Ejemplos:</span>
+    <div class="ejemplo" data-expr="3x^2">3x²</div>
+    <div class="ejemplo" data-expr="5x+7">5x+7</div>
+    <div class="ejemplo" data-expr="sen2x">sen2x</div>
+    <div class="ejemplo" data-expr="cos3x">cos3x</div>
+    <div class="ejemplo" data-expr="e^(2x)">e^(2x)</div>
+    <div class="ejemplo" data-expr="1/x">1/x</div>
+    <div class="ejemplo" data-expr="sec^2(x)">sec²(x)</div>
+</div>
+
+<div id="resultado" class="resultado">✨ Escribe una función y dale clic ✨</div>
+
+<div class="firma">Daniel Espinoza Elías 6to C</div>
+
+<script>
+    // MCD para simplificar fracciones
+    function mcd(a, b) {
+        a = Math.abs(a);
+        b = Math.abs(b);
+        while (b !== 0) {
+            let t = b;
+            b = a % b;
+            a = t;
+        }
+        return a;
+    }
+    
+    function simplificarFraccion(num, den) {
+        if (num === 0) return "0";
+        let divisor = mcd(num, den);
+        num /= divisor;
+        den /= divisor;
+        if (den === 1) return `${num}`;
+        if (den === -1) return `${-num}`;
+        if (den < 0) {
+            num = -num;
+            den = -den;
+        }
+        return `${num}/${den}`;
+    }
+    
+    // Integrador manual directo
+    function integrarManual(expr) {
+        let pasos = [];
+        let exprOriginal = expr;
+        
+        expr = expr.replace(/\s/g, '');
+        expr = expr.replace(/sen/g, 'sin');
+        
+        // ========== CASO: x^n ==========
+        let potMatch = expr.match(/^(\d*)x\^(\d+)$/);
+        if (potMatch) {
+            let coef = potMatch[1] === '' ? 1 : parseInt(potMatch[1]);
+            let exp = parseInt(potMatch[2]);
+            let nuevoExp = exp + 1;
+            let nuevoCoef = coef / nuevoExp;
+            let fraccion = simplificarFraccion(coef, nuevoExp);
+            let resultado = (fraccion === '1') ? `x^${nuevoExp}` : (fraccion === '-1') ? `-x^${nuevoExp}` : `${fraccion} x^${nuevoExp}`;
+            if (nuevoExp === 1) resultado = resultado.replace('x^1', 'x');
+            pasos.push(`📌 ∫ ${coef}x^${exp} dx`);
+            pasos.push(`📌 Regla de potencia: ∫ x^n dx = x^(n+1)/(n+1)`);
+            pasos.push(`📌 = ${coef} · x^${exp+1}/${exp+1} = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: ax (lineal) ==========
+        let linMatch = expr.match(/^(\d+)x$/);
+        if (linMatch) {
+            let coef = parseInt(linMatch[1]);
+            let resultado = `${coef/2} x²`;
+            let fraccion = simplificarFraccion(coef, 2);
+            resultado = (fraccion === '1') ? `x²/2` : (fraccion === '-1') ? `-x²/2` : `${fraccion} x²`;
+            pasos.push(`📌 ∫ ${coef}x dx`);
+            pasos.push(`📌 Regla de potencia: ∫ x dx = x²/2`);
+            pasos.push(`📌 = ${coef} · x²/2 = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: constante ==========
+        let constMatch = expr.match(/^(\d+)$/);
+        if (constMatch) {
+            let c = parseInt(constMatch[1]);
+            let resultado = `${c}x`;
+            pasos.push(`📌 ∫ ${c} dx`);
+            pasos.push(`📌 Regla de constante: ∫ a dx = a·x`);
+            pasos.push(`📌 = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: sen(kx) ==========
+        let senMatch = expr.match(/^sin(\d+)x$/);
+        if (senMatch) {
+            let k = parseInt(senMatch[1]);
+            let resultado = `-1/${k} cos${k}x`;
+            let fraccion = simplificarFraccion(1, k);
+            resultado = (k === 1) ? `-cosx` : `-${fraccion} cos${k}x`;
+            pasos.push(`📌 ∫ sen${k}x dx`);
+            pasos.push(`📌 Regla: ∫ sen(ax) dx = -1/a · cos(ax)`);
+            pasos.push(`📌 = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: senx ==========
+        if (expr === 'sinx') {
+            pasos.push(`📌 ∫ senx dx`);
+            pasos.push(`📌 Regla: ∫ sen(x) dx = -cos(x)`);
+            pasos.push(`📌 = -cosx`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `-cosx + C`, exito: true };
+        }
+        
+        // ========== CASO: cos(kx) ==========
+        let cosMatch = expr.match(/^cos(\d+)x$/);
+        if (cosMatch) {
+            let k = parseInt(cosMatch[1]);
+            let resultado = `1/${k} sen${k}x`;
+            let fraccion = simplificarFraccion(1, k);
+            resultado = (k === 1) ? `senx` : `${fraccion} sen${k}x`;
+            pasos.push(`📌 ∫ cos${k}x dx`);
+            pasos.push(`📌 Regla: ∫ cos(ax) dx = 1/a · sen(ax)`);
+            pasos.push(`📌 = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: cosx ==========
+        if (expr === 'cosx') {
+            pasos.push(`📌 ∫ cosx dx`);
+            pasos.push(`📌 Regla: ∫ cos(x) dx = sen(x)`);
+            pasos.push(`📌 = senx`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `senx + C`, exito: true };
+        }
+        
+        // ========== CASO: e^(kx) ==========
+        let expMatch = expr.match(/^e\^\((\d+)x\)$/);
+        if (expMatch) {
+            let k = parseInt(expMatch[1]);
+            let resultado = `1/${k} e^(${k}x)`;
+            let fraccion = simplificarFraccion(1, k);
+            resultado = (k === 1) ? `e^x` : `${fraccion} e^(${k}x)`;
+            pasos.push(`📌 ∫ e^(${k}x) dx`);
+            pasos.push(`📌 Regla: ∫ e^(ax) dx = 1/a · e^(ax)`);
+            pasos.push(`📌 = ${resultado}`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `${resultado} + C`, exito: true };
+        }
+        
+        // ========== CASO: e^x ==========
+        if (expr === 'e^(x)' || expr === 'e^x') {
+            pasos.push(`📌 ∫ e^x dx`);
+            pasos.push(`📌 Regla: ∫ e^x dx = e^x`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `e^x + C`, exito: true };
+        }
+        
+        // ========== CASO: 1/x ==========
+        if (expr === '1/x') {
+            pasos.push(`📌 ∫ 1/x dx`);
+            pasos.push(`📌 Regla: ∫ 1/x dx = ln|x|`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `ln|x| + C`, exito: true };
+        }
+        
+        // ========== CASO: sec^2(x) ==========
+        if (expr === 'sec^2(x)' || expr === 'sec²(x)') {
+            pasos.push(`📌 ∫ sec²(x) dx`);
+            pasos.push(`📌 Regla: ∫ sec²(x) dx = tan(x)`);
+            pasos.push(`📌 + C`);
+            return { pasos, resultado: `tanx + C`, exito: true };
+        }
+        
+        // ========== SUMAS ==========
+        if (expr.includes('+')) {
+            let terminos = [];
+            let actual = "";
+            for (let i = 0; i < expr.length; i++) {
+                let c = expr[i];
+                if (c === '+' && actual) {
+                    terminos.push(actual);
+                    actual = "";
+                } else {
+                    actual += c;
+                }
+            }
+            if (actual) terminos.push(actual);
+            
+            pasos.push(`📌 ∫ (${expr}) dx = ∫ ${terminos.join(" dx + ∫ ")} dx`);
+            pasos.push(`📌 Aplicamos linealidad:`);
+            
+            let resultados = [];
+            for (let i = 0; i < terminos.length; i++) {
+                let res = integrarManual(terminos[i]);
+                if (!res.exito) return res;
+                resultados.push(res.resultado.replace(' + C', ''));
+                pasos.push(...res.pasos);
+            }
+            
+            let resultadoFinal = resultados.join(" + ");
+            resultadoFinal = resultadoFinal.replace(/\+ -/g, '- ');
+            resultadoFinal = resultadoFinal.replace(/0 \+ /g, '');
+            resultadoFinal = resultadoFinal.replace(/ \+ 0/g, '');
+            
+            pasos.push(`📌 Resultado final: ${resultadoFinal} + C`);
+            return { pasos, resultado: `${resultadoFinal} + C`, exito: true };
+        }
+        
+        return { error: `No se pudo integrar: ${exprOriginal}`, exito: false };
+    }
+    
+    function mostrar(original, resultado) {
+        const contenedor = document.getElementById('resultado');
+        if (!resultado.exito) {
+            contenedor.innerHTML = `<div style="color:#f66;">❌ ${resultado.error}</div>`;
+            return;
+        }
+        let html = `<div><strong>📌 Función original:</strong> ∫ ${original} dx</div>`;
+        html += `<hr><div><strong>🔍 Pasos:</strong></div>`;
+        resultado.pasos.forEach((p, i) => {
+            html += `<div class="paso">${i+1}. ${p}</div>`;
+        });
+        html += `<hr><div><strong>🧨 INTEGRAL FINAL:</strong> ${resultado.resultado}</div>`;
+        contenedor.innerHTML = html;
+    }
+    
+    document.getElementById('integrar').addEventListener('click', () => {
+        let original = document.getElementById('funcion').value.trim();
+        if (!original) return;
+        let resultado = integrarManual(original);
+        mostrar(original, resultado);
+    });
+    
+    document.querySelectorAll('.ejemplo').forEach(el => {
+        el.addEventListener('click', () => {
+            let expr = el.getAttribute('data-expr');
+            document.getElementById('funcion').value = expr;
+            document.getElementById('integrar').click();
+        });
+    });
+    
+    window.addEventListener('load', () => {
+        document.getElementById('integrar').click();
+    });
+</script>
+</body>
+</html>
